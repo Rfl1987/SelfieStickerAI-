@@ -3,14 +3,13 @@ package com.selfie.stickerai
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.selfie.stickerai.databinding.ActivityPreviewBinding
 import com.selfie.stickerai.export.StickerExporter
-import com.selfie.stickerai.processing.StickerProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,12 +29,17 @@ class PreviewActivity : AppCompatActivity() {
         
         exporter = StickerExporter(this)
         
-        stickerBitmap = intent.getParcelableExtra("sticker_bitmap") 
-            ?: run {
-                Toast.makeText(this, "Error loading sticker", Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
+        // Fixed: Handle both old and new API levels
+        stickerBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("sticker_bitmap", Bitmap::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("sticker_bitmap")
+        } ?: run {
+            Toast.makeText(this, "Error loading sticker", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
         setupUI()
         displaySticker()
