@@ -14,9 +14,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.card.MaterialCardView
 import com.selfie.stickerai.databinding.ActivityMainBinding
-import com.selfie.stickerai.processing.StickerProcessor
 import com.selfie.stickerai.segmentation.SelfieSegmenter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
