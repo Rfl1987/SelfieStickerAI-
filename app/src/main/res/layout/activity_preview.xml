@@ -22,7 +22,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_margin="16dp"
-        android:background="@drawable/bg_transparent_grid"
+        android:background="#FF333333"
         app:layout_constraintTop_toBottomOf="@id/toolbar"
         app:layout_constraintBottom_toTopOf="@id/btnContainer"
         app:layout_constraintStart_toStartOf="parent"
