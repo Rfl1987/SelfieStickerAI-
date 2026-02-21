@@ -19,6 +19,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Download and Install Gradle
       run: |
         wget https://services.gradle.org/distributions/gradle-8.2-bin.zip
@@ -29,7 +32,15 @@ jobs:
     - name: Build Debug APK
       run: |
         export PATH=$PWD/gradle-8.2/bin:$PATH
-        gradle assembleDebug
+        gradle assembleDebug --stacktrace
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: failure()  # Upload logs even if build fails
+      with:
+        name: build-logs
+        path: app/build/outputs/
+        retention-days: 1
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
