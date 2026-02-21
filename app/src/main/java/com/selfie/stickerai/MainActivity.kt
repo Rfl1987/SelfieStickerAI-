@@ -3,6 +3,7 @@ package com.selfie.stickerai
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -54,7 +56,6 @@ class MainActivity : AppCompatActivity() {
         
         segmenter = SelfieSegmenter(this)
 
-        // Make sure cards are clickable
         binding.cardCamera.setOnClickListener {
             handleCameraClick()
         }
@@ -102,12 +103,10 @@ class MainActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, arrayOf(permission), 100)
     }
 
-    // THIS WAS MISSING - Handles permission result
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 100 && grantResults.isNotEmpty()) {
             if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, check which one and open accordingly
                 when (permissions[0]) {
                     CAMERA_PERMISSION -> openCamera()
                     STORAGE_PERMISSION -> openGallery()
@@ -175,11 +174,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun navigateToPreview(bitmap: android.graphics.Bitmap) {
-        val intent = Intent(this, PreviewActivity::class.java).apply {
-            putExtra("sticker_bitmap", bitmap)
+    private fun navigateToPreview(bitmap: Bitmap) {
+        try {
+            // Save bitmap to cache file instead of passing directly (fixes "parcel blob" error)
+            val file = File(cacheDir, "temp_sticker_${System.currentTimeMillis()}.png")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+            
+            val intent = Intent(this, PreviewActivity::class.java).apply {
+                putExtra("sticker_path", file.absolutePath)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error saving sticker: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-        startActivity(intent)
     }
 
     private fun showLoading(show: Boolean) {
