@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.View
@@ -28,7 +29,11 @@ class MainActivity : AppCompatActivity() {
     private var currentPhotoPath: String? = null
     
     private val CAMERA_PERMISSION = Manifest.permission.CAMERA
-    private val STORAGE_PERMISSION = Manifest.permission.READ_EXTERNAL_STORAGE
+    private val STORAGE_PERMISSION = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
 
     private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { processImage(it) }
@@ -49,18 +54,41 @@ class MainActivity : AppCompatActivity() {
         
         segmenter = SelfieSegmenter(this)
 
+        // Make sure cards are clickable
         binding.cardCamera.setOnClickListener {
-            if (checkPermission(CAMERA_PERMISSION)) {
-                openCamera()
-            } else {
-                requestPermission(CAMERA_PERMISSION)
-            }
+            handleCameraClick()
         }
 
         binding.cardGallery.setOnClickListener {
-            if (checkPermission(STORAGE_PERMISSION)) {
+            handleGalleryClick()
+        }
+    }
+
+    private fun handleCameraClick() {
+        when {
+            checkPermission(CAMERA_PERMISSION) -> {
+                openCamera()
+            }
+            shouldShowRequestPermissionRationale(CAMERA_PERMISSION) -> {
+                Toast.makeText(this, "Camera permission needed to take photos", Toast.LENGTH_SHORT).show()
+                requestPermission(CAMERA_PERMISSION)
+            }
+            else -> {
+                requestPermission(CAMERA_PERMISSION)
+            }
+        }
+    }
+
+    private fun handleGalleryClick() {
+        when {
+            checkPermission(STORAGE_PERMISSION) -> {
                 openGallery()
-            } else {
+            }
+            shouldShowRequestPermissionRationale(STORAGE_PERMISSION) -> {
+                Toast.makeText(this, "Storage permission needed to select images", Toast.LENGTH_SHORT).show()
+                requestPermission(STORAGE_PERMISSION)
+            }
+            else -> {
                 requestPermission(STORAGE_PERMISSION)
             }
         }
@@ -74,19 +102,43 @@ class MainActivity : AppCompatActivity() {
         ActivityCompat.requestPermissions(this, arrayOf(permission), 100)
     }
 
+    // THIS WAS MISSING - Handles permission result
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100 && grantResults.isNotEmpty()) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, check which one and open accordingly
+                when (permissions[0]) {
+                    CAMERA_PERMISSION -> openCamera()
+                    STORAGE_PERMISSION -> openGallery()
+                }
+            } else {
+                Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun openGallery() {
-        getContent.launch("image/*")
+        try {
+            getContent.launch("image/*")
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error opening gallery: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openCamera() {
-        val photoFile = createImageFile()
-        currentPhotoPath = photoFile.absolutePath
-        val photoURI = FileProvider.getUriForFile(
-            this,
-            "${packageName}.fileprovider",
-            photoFile
-        )
-        takePicture.launch(photoURI)
+        try {
+            val photoFile = createImageFile()
+            currentPhotoPath = photoFile.absolutePath
+            val photoURI = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                photoFile
+            )
+            takePicture.launch(photoURI)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error opening camera: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun createImageFile(): File {
