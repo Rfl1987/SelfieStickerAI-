@@ -2,8 +2,8 @@ package com.selfie.stickerai
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -18,9 +18,10 @@ import java.io.File
 class PreviewActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPreviewBinding
-    private lateinit var stickerBitmap: Bitmap
+    private var stickerBitmap: Bitmap? = null
     private lateinit var exporter: StickerExporter
     private var savedFile: File? = null
+    private var tempFilePath: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,14 +30,23 @@ class PreviewActivity : AppCompatActivity() {
         
         exporter = StickerExporter(this)
         
-        // Fixed: Handle both old and new API levels
-        stickerBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra("sticker_bitmap", Bitmap::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra("sticker_bitmap")
-        } ?: run {
-            Toast.makeText(this, "Error loading sticker", Toast.LENGTH_SHORT).show()
+        // Load from file path instead of Parcelable (fixes large bitmap issue)
+        tempFilePath = intent.getStringExtra("sticker_path")
+        if (tempFilePath == null) {
+            Toast.makeText(this, "Error: No image path", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+        
+        try {
+            stickerBitmap = BitmapFactory.decodeFile(tempFilePath)
+            if (stickerBitmap == null) {
+                Toast.makeText(this, "Error loading sticker", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error loading image: ${e.message}", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -64,13 +74,16 @@ class PreviewActivity : AppCompatActivity() {
     }
 
     private fun displaySticker() {
-        binding.ivSticker.setImageBitmap(stickerBitmap)
+        stickerBitmap?.let {
+            binding.ivSticker.setImageBitmap(it)
+        }
     }
 
     private fun saveSticker() {
+        val bitmap = stickerBitmap ?: return
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val file = exporter.saveSticker(stickerBitmap)
+                val file = exporter.saveSticker(bitmap)
                 savedFile = file
                 
                 withContext(Dispatchers.Main) {
@@ -93,9 +106,10 @@ class PreviewActivity : AppCompatActivity() {
     }
 
     private fun shareSticker(packageName: String, errorMsg: String) {
+        val bitmap = stickerBitmap ?: return
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val file = savedFile ?: exporter.saveSticker(stickerBitmap)
+                val file = savedFile ?: exporter.saveSticker(bitmap)
                 savedFile = file
                 
                 val uri = androidx.core.content.FileProvider.getUriForFile(
@@ -122,6 +136,18 @@ class PreviewActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@PreviewActivity, "Share failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // Clean up temp file
+        tempFilePath?.let { path ->
+            try {
+                File(path).delete()
+            } catch (e: Exception) {
+                // Ignore cleanup errors
             }
         }
     }
