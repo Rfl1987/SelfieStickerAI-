@@ -9,12 +9,14 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import com.google.mlkit.vision.common.InputImage
+import android.graphics.BitmapFactory
 import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.SegmentationMask
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.nio.FloatBuffer
 
 class SelfieSegmenter(context: Context) {
     
@@ -49,13 +51,15 @@ class SelfieSegmenter(context: Context) {
         // Draw original image
         canvas.drawBitmap(original, 0f, 0f, null)
         
-        // Apply mask as alpha channel
+        // Read mask buffer as float buffer
+        maskBuffer.rewind()
+        val floatBuffer = maskBuffer.asFloatBuffer()
+        val maskPixels = FloatArray(maskWidth * maskHeight)
+        floatBuffer.get(maskPixels)
+        
+        // Get original bitmap pixels
         val pixels = IntArray(width * height)
         original.getPixels(pixels, 0, width, 0, 0, width, height)
-        
-        val maskPixels = FloatArray(maskWidth * maskHeight)
-        maskBuffer.rewind()
-        maskBuffer.get(maskPixels)
         
         // Scale factor if mask is different size
         val scaleX = maskWidth.toFloat() / width
