@@ -2,6 +2,7 @@ package com.selfie.stickerai.export
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Environment
 import java.io.File
 import java.io.FileOutputStream
@@ -26,8 +27,13 @@ class StickerExporter(private val context: Context) {
         
         val file = File(stickersDir, filename)
         FileOutputStream(file).use { out ->
-            // Compress to WebP with transparency
-            processed.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, out)
+            // Compress to WebP with transparency - use compatible format
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                processed.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, out)
+            } else {
+                @Suppress("DEPRECATION")
+                processed.compress(Bitmap.CompressFormat.WEBP, 100, out)
+            }
         }
         
         // Also save to Downloads for user access
@@ -45,7 +51,12 @@ class StickerExporter(private val context: Context) {
             val file = File(selfieDir, filename)
             
             FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, out)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, 100, out)
+                } else {
+                    @Suppress("DEPRECATION")
+                    bitmap.compress(Bitmap.CompressFormat.WEBP, 100, out)
+                }
             }
         } catch (e: Exception) {
             // Fallback: don't crash if external storage not available
