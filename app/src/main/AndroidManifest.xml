@@ -32,6 +32,12 @@
             </intent-filter>
         </activity>
         
+        <!-- ADD THIS LINE - PreviewActivity was missing! -->
+        <activity
+            android:name=".PreviewActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
